@@ -2,10 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Quotes.Api;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure an volatile in-memory database that resets on application restart
 builder.Services.AddDbContext<QuoteDbContext>(opt => opt.UseInMemoryDatabase("QuotesDb"));
 
 var app = builder.Build();
 
+// POST endpoint to store a new quote in the database
 app.MapPost("/quotes", async (Quote quote, QuoteDbContext db) =>
 {
     db.Quotes.Add(quote);
@@ -13,6 +16,7 @@ app.MapPost("/quotes", async (Quote quote, QuoteDbContext db) =>
     return Results.Created($"/quotes/{quote.Id}", quote);
 });
 
+// GET endpoint to fetch all stored quotes and return one at random
 app.MapGet("/quotes/random", async (QuoteDbContext db) =>
 {
     var quotes = await db.Quotes.ToListAsync();
