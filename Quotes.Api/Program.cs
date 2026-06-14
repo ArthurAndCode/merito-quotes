@@ -1,44 +1,29 @@
-var builder = WebApplication.CreateBuilder(args);
+using Microsoft.EntityFrameworkCore;
+using Quotes.Api;
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<QuoteDbContext>(opt => opt.UseInMemoryDatabase("QuotesDb"));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.MapPost("/quotes", async (Quote quote, QuoteDbContext db) =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    db.Quotes.Add(quote);
+    await db.SaveChangesAsync();
+    return Results.Created($"/quotes/{quote.Id}", quote);
+});
 
-app.UseHttpsRedirection();
-
-var summaries = new[]
+app.MapGet("/quotes/random", async (QuoteDbContext db) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast")
-.WithOpenApi();
+    var quotes = await db.Quotes.ToListAsync();
+    if (!quotes.Any())
+    {
+        return Results.NotFound();
+    }
+    
+    var random = new Random();
+    var index = random.Next(quotes.Count);
+    return Results.Ok(quotes[index]);
+});
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
